@@ -1,0 +1,43 @@
+/* 
+  index.css imported in main.jsx.
+  Given that I use MUI for quite tightly controlled styling, this is limited to applying things such 
+  as global styles that MUI doesn't control (e.g. scrollbars), or global overrides for fonts, etc.
+*/
+
+html,
+body {
+  /* margin: 0;
+  padding: 0;
+  height: 100%;
+  box-sizing: border-box; */
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto", sans-serif; /* Override if needed */
+  background-color: #1a1a2e;
+  color: white;
+}
+
+/* Example: Custom scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #3c2faa;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #524b8d;
+}
+
+/* Bouncing effect */
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
