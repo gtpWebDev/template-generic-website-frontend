@@ -41,7 +41,7 @@ const Navbar = () => {
     <AppBar
       position="fixed"
       sx={{
-        backgroundColor: "transparent",
+        backgroundColor: theme.palette.primary.main,
         boxShadow: "none",
         backdropFilter: "blur(10px)", // Optional blur effect
         height: { xs: NAVBAR_HEIGHT_XS, md: NAVBAR_HEIGHT_MD },

@@ -3,89 +3,16 @@
 
 import { BACKEND_URI } from "../constants/backendRequests";
 
+import { CATCH_ALL_SERVER_ERROR_MESSAGE } from "../constants/backendRequests";
+
 import axios from "axios";
 
 // Configuration for all requests on instance
 // could add default headers, etc.
 export const axiosInstance = axios.create({
   baseURL: BACKEND_URI,
-  timeout: 10000, // 10 seconds
+  timeout: 20000, // 20 seconds
 });
-
-/**
- * -------------- INTERCEPTORS ----------------
- */
-
-/* Interceptors enable functionality before a request is sent, or after a response is received
-   These happen before **then** or **catch**
-   They are:
-    - pre-send function
-    - request error function
-    - response success function
-    - response error function
-*/
-
-// Carried out before the request is sent
-const preSendFn = (config) => {
-  //import token from local storage, and add it to header
-  let token = localStorage.getItem("token") || "";
-  config.headers = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    Authorization: token,
-  };
-  // console.log("Adding authorization token to request header");
-  return config;
-};
-
-// Do something with the request error
-const requestErrorFn = (error) => {
-  console.log("Request Error Function Fired!");
-  return Promise.reject(error);
-};
-
-axiosInstance.interceptors.request.use(preSendFn, requestErrorFn);
-
-// Status codes 2XX cause this to trigger
-const responseSuccessFn = (response) => {
-  // Do something with response
-  // console.log("Response Success Function Fired!");
-  return response;
-};
-
-// status codes other than 2XX cause this to trigger
-const responseErrorFn = (error) => {
-  // Do something with response error
-
-  // some standard error handling that might want to amend
-  if (error.response) {
-    // Handle specific status codes
-    if (error.response.status === 401) {
-      // Unauthorized: handle token expiration, redirect to login, etc.
-      console.error("Interceptor: Authentication issue (JWT)");
-      // Optionally, you could also refresh the token here
-    } else if (error.response.status === 403) {
-      // Forbidden: handle permission issues
-      console.error(
-        "Interceptor: Forbidden, user does not have permission to access this resource."
-      );
-    } else if (error.response.status === 500) {
-      // Internal Server Error: handle server issues
-      console.error(
-        "Interceptor: Internal server error, please try again later."
-      );
-    }
-  } else if (error.request) {
-    // The request was made but no response was received
-    console.error("Interceptor: No response received:", error.request);
-  } else {
-    // Something happened in setting up the request that triggered an Error
-    console.error("Interceptor: Error setting up request:", error.message);
-  }
-  return Promise.reject(error);
-};
-
-axiosInstance.interceptors.response.use(responseSuccessFn, responseErrorFn);
 
 /**
  * -------------- HTTP REQUESTS ----------------
@@ -107,73 +34,181 @@ axiosInstance.interceptors.response.use(responseSuccessFn, responseErrorFn);
  *
  */
 
+/** My backend responses are of the following form:
+ * Success:
+ * status: 200
+ * {
+ *   success: true,
+ *   data: some_data,
+ *   error: null
+ * }
+ * Managed Failure:
+ * status 200:
+ * {
+ *   success: false,
+ *   data: null,
+ *   error: {
+ *     managed: true,
+ *     msg: a_meaningful_error_message where possible
+ *   }
+ * }
+ * Unmanaged failure, app catch all with error status
+ * status: not 200!
+ * {
+ *   success: false,
+ *   data: null,
+ *   error: {
+ *     managed: false,
+ *     msg: err.message // standard messages outside my control, e.g. "Not found" for no recognised endpoint
+ *   }
+ * }
+ */
+
+/**
+ * Axios utility functions always output:
+ * { success, data, msg }. data is the data or null, msg is null or the error msg
+ */
+
 // includes built in error handling
 export const axiosGet = async (relativeUri) => {
   // returns JSON form
 
   try {
+    // console.log("relativeUri", relativeUri);
+
     const response = await axiosInstance.get(relativeUri);
-    const successResponse = {
-      // server data is {success: true/false, data}
-      success: response.data.success,
-      data: response.data.data,
-      error: null,
-    };
-    console.log("axiosGet returning successResponse", successResponse);
-    return successResponse;
+
+    let managedResponse;
+    if (response.data.success) {
+      // Successful responses
+      managedResponse = {
+        success: true,
+        data: response.data.data,
+        msg: null,
+      };
+    } else {
+      // Managed failure
+      managedResponse = {
+        success: false,
+        data: null,
+        msg: response.data.error.msg, // null
+      };
+    }
+    // console.log("axiosGet returning managedResponse", managedResponse);
+    return managedResponse;
   } catch (error) {
-    console.log("AxiosError", error);
-    const errorResponse = {
+    // Unmanaged failure responses
+    console.log("AxiosError", error); // log message but hide from user
+
+    const refinedErrorMessage = errorMessageHandling(error);
+
+    const unmanagedResponse = {
       success: false,
       data: null,
-      error: {
-        status: error.response.status,
-        message: error.response.data,
-      },
+      msg: refinedErrorMessage,
     };
-    console.log("axiosGet returning errorResponse", errorResponse);
-    return errorResponse;
+    console.log("axiosPatch returning unmanagedResponse", unmanagedResponse);
+    return unmanagedResponse;
   }
 };
 
-// TO REFINE AS GET
-export const axiosPost = async (relativeUri, data, config) => {
+//
+export const axiosPost = async (relativeUri, data) => {
+  const config = {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
   // axios stringifies the post data when we send Javascript objects
   try {
     const response = await axiosInstance.post(relativeUri, data, config);
-    const successResponse = {
-      // server data is {success: true/false, data}
-      success: response.data.success,
-      data: response.data,
-      error: null,
-    };
-    console.log("axiosPost returning successResponse", successResponse);
-    return successResponse;
+    let managedResponse;
+    if (response.data.success) {
+      // Successful responses
+      managedResponse = {
+        success: true,
+        data: response.data.data,
+        msg: null,
+      };
+    } else {
+      // Managed failure
+      managedResponse = {
+        success: false,
+        data: null,
+        msg: response.data.error.msg, // null
+      };
+    }
+    // console.log("axiosPost returning managedResponse", managedResponse);
+    return managedResponse;
   } catch (error) {
-    console.log("AxiosError", error);
-    const errorResponse = {
+    // Unmanaged failure responses
+    console.log("AxiosError", error); // log message but hide from user
+
+    const refinedErrorMessage = errorMessageHandling(error);
+
+    const unmanagedResponse = {
       success: false,
       data: null,
-      error: {
-        status: error.response.status,
-        message: error.response.data.msg,
-      },
+      msg: refinedErrorMessage,
     };
-    console.log("axiosPost returning errorResponse", errorResponse);
-    return errorResponse;
+    console.log("axiosPatch returning unmanagedResponse", unmanagedResponse);
+    return unmanagedResponse;
   }
 };
 
-// not currently used
-// export const axiosWithConfig = async (config) => {
-//   const config = {
-//     method: "post",
-//     url: "/user/12345",
-//     data: {
-//       firstName: "Fred",
-//       lastName: "Flintstone",
-//     },
-//   };
-//   const response = await axiosInstance(config);
-//   return response.data;
-// };
+// patch - partial updates
+export const axiosPatch = async (relativeUri, data) => {
+  const config = {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  // axios stringifies the patch data when we send Javascript objects
+  try {
+    const response = await axiosInstance.patch(relativeUri, data, config);
+    let managedResponse;
+    if (response.data.success) {
+      // Successful responses
+      managedResponse = {
+        success: true,
+        data: response.data.data,
+        msg: null,
+      };
+    } else {
+      // Managed failure
+      managedResponse = {
+        success: false,
+        data: null,
+        msg: response.data.error.msg, // null
+      };
+    }
+    console.log("axiosPatch returning managedResponse", managedResponse);
+    return managedResponse;
+  } catch (error) {
+    // Unmanaged failure responses
+    console.log("AxiosError", error); // log message but hide from user
+
+    const refinedErrorMessage = errorMessageHandling(error);
+
+    const unmanagedResponse = {
+      success: false,
+      data: null,
+      msg: refinedErrorMessage,
+    };
+    console.log("axiosPatch returning unmanagedResponse", unmanagedResponse);
+    return unmanagedResponse;
+  }
+};
+
+const errorMessageHandling = (error) => {
+  if (error.status === 429) {
+    // rate limit, retain this to provide a more friendly message
+    // includes the time to rate limiting end for the ip
+    return error.response.data.error.msg;
+  } else {
+    // catch all
+    return CATCH_ALL_SERVER_ERROR_MESSAGE;
+  }
+};

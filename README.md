@@ -1,4 +1,4 @@
-# skeleton-react-single-page-app
+# tmeplate-generic-website-frontend
 
 A template appropriate for publishing a react-based single page application.
 
@@ -311,6 +311,16 @@ Install moment, which manipulates dates (guide used this, no sense in changing)
 ```bash
 npm install moment
 ```
+
+#### Netlify redirects
+
+Note, a **\_redirects** file is added in the public directory with:
+
+```bash
+/*  /index.html  200
+```
+
+This means that if users navigate directly to any subaddresses, netlify will redirect them to the single page address.
 
 Added **lib/AuthService.js** which adds and removes the JWT details to local storage, which then gets added to requests using the interceptors.
 

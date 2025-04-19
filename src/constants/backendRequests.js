@@ -8,3 +8,7 @@ export const HEADER_JSON_CONFIG = {
     "Content-Type": "application/json",
   },
 };
+
+// Expected managed response
+export const CATCH_ALL_SERVER_ERROR_MESSAGE =
+  "Something went wrong while processing your request. Please try again later.";
