@@ -39,7 +39,6 @@ const useGetBackendData = () => {
     // console.log("relativeUrl", relativeUri);
 
     setLoading(true);
-    setError(null);
     try {
       let response;
       if (method === "GET") {
@@ -55,6 +54,7 @@ const useGetBackendData = () => {
       if (response.success) {
         // console.log(`hook received data for url ${relativeUri}`, response.data);
         setData(response.data);
+        setError(null);
         return;
       } else {
         setError(response.msg);
